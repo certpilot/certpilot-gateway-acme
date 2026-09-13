@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/certpilot/certpilot/gateways/acme/solver"
+	"github.com/certpilot/certpilot-gateway-acme/solver"
 )
 
 // Well-known ACME directory endpoints, for operator convenience.

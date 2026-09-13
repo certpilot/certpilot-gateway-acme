@@ -21,9 +21,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	acme "github.com/certpilot/certpilot-gateway-acme"
 	"github.com/certpilot/certpilot-gateway-sdk/grpckit"
 	providerv1 "github.com/certpilot/certpilot-gateway-sdk/pb/provider/v1"
-	"github.com/certpilot/certpilot/gateways/acme"
 )
 
 func main() {

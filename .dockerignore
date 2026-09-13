@@ -1,0 +1,22 @@
+# What an image build must never see.
+#
+# The first entries are not about size. A build context is handed to the daemon
+# whole before any instruction runs, and the builder stage does `COPY . .`, so
+# anything matching these patterns would reach a layer. A certificate tool
+# baking private key material into an image is the specific failure this
+# prevents — and it is the one failure here that cannot be undone by deleting
+# the image, because layers get pushed.
+.env
+.env.*
+.certpilot/
+*.pem
+*.key
+config.dev.yaml
+
+# Not inputs to the binary.
+.git/
+.github/
+bin/
+*.md
+*.log
+.DS_Store
