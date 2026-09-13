@@ -1,15 +1,9 @@
-module github.com/certpilot/certpilot/gateways/acme
+module github.com/certpilot/certpilot-gateway-acme
 
 go 1.26.6
 
-replace github.com/certpilot/certpilot/pkg => ../../pkg
-
-replace github.com/certpilot/certpilot-gateway-sdk => ../../pkg/gatewaysdk
-
-replace github.com/certpilot/certpilot-agent-sdk => ../../pkg/agentsdk
-
 require (
-	github.com/certpilot/certpilot-gateway-sdk v0.0.0-00010101000000-000000000000
+	github.com/certpilot/certpilot-gateway-sdk v0.2.0
 	golang.org/x/crypto v0.55.0
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.12

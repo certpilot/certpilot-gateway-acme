@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/certpilot/certpilot/gateways/acme/solver"
+	"github.com/certpilot/certpilot-gateway-acme/solver"
 	"golang.org/x/crypto/acme"
 )
 

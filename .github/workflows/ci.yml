@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./...
+
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+
+      # An untidy go.mod means the module graph here is not the one a fresh
+      # clone resolves.
+      - name: go.mod is tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
+  conformance:
+    name: provider.v1 conformance
+    runs-on: ubuntu-latest
+    # The cross-repository check.
+    #
+    # While this gateway lived in the monorepo, one CI run built the core and
+    # all three gateways together, so a change that broke the core-to-gateway
+    # channel failed before it merged. Split apart, nothing asks "does the core
+    # still work with this gateway" — and the answer arriving in production is
+    # exactly what the split was not supposed to cost.
+    #
+    # This is that question, asked against the published contract rather than
+    # against a sibling directory: the probe comes from certpilot-gateway-sdk at
+    # a released version, the same way any third-party gateway would run it.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Start the gateway
+        run: |
+          go build -o /tmp/gateway ./cmd/
+          /tmp/gateway --insecure --port=9092 &
+          for i in $(seq 1 40); do
+            if nc -z 127.0.0.1 9092; then echo "listening"; exit 0; fi
+            sleep 0.25
+          done
+          echo "::error::the gateway never bound port 9092"
+          exit 1
+
+      - name: Probe the contract
+        run: |
+          go run github.com/certpilot/certpilot-gateway-sdk/cmd/conformance@v0.2.0 \
+            -addr 127.0.0.1:9092 -insecure
+
+  image:
+    name: image builds
+    runs-on: ubuntu-latest
+    # Every Dockerfile in the tree these came from was unverified until a job
+    # existed that built it, and one of them could not have built at all.
+    # Nothing ever tried. This is what stops that recurring here.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: gateway-acmei
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/certpilot/certpilot/gateways/acme/solver"
+	"github.com/certpilot/certpilot-gateway-acme/solver"
 )
 
 func TestParseConfigDefaults(t *testing.T) {
