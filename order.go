@@ -40,7 +40,7 @@ type pendingChallenge struct {
 // twenty-SAN certificate would otherwise pay the DNS propagation wait twenty
 // times over, which at current certificate lifetimes is the difference between
 // a renewal that fits in its window and one that does not.
-func (p *Provider) obtainCertificate(ctx context.Context, cfg *Config, csrDER []byte, domains []string) (*issuedCertificate, error) {
+func (p *Provider) obtainCertificate(ctx context.Context, cfg *Config, csrDER []byte, domains []string, profile string) (*issuedCertificate, error) {
 	ctx, cancel := context.WithTimeout(ctx, cfg.OrderTimeout())
 	defer cancel()
 
@@ -69,25 +69,50 @@ func (p *Provider) obtainCertificate(ctx context.Context, cfg *Config, csrDER []
 		"directory", cfg.DirectoryURL,
 		"domains", domains,
 		"challenge", cfg.Challenge,
+		"profile", profile,
 	)
 
-	order, err := client.AuthorizeOrder(ctx, acme.DomainIDs(domains...))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create ACME order: %w", describeACMEError(err))
+	var order *acme.Order
+	if profile == "" {
+		order, err = client.AuthorizeOrder(ctx, acme.DomainIDs(domains...))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create ACME order: %w", describeACMEError(err))
+		}
+	} else {
+		// The typed client cannot ask for a profile — see profile.go — so this
+		// order is created and, further down, finalized by hand.
+		order, err = p.createProfiledOrder(ctx, client, cfg, domains, profile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create ACME order under profile %q: %w", profile, describeACMEError(err))
+		}
 	}
+
+	// The order's own URL, kept independently of whatever order.URI reads
+	// after later calls. client.WaitOrder below reconstructs its return value
+	// from the polling response and sets URI from that response's Location
+	// header — which at least one real implementation of the profiles draft
+	// (Pebble, found while testing this) does not repeat on a re-fetch of an
+	// already-located resource. Losing this would make the finalize step
+	// below try to poll "", which fails with a message that names none of
+	// this — "unsupported protocol scheme" — and would have been a page in a
+	// runbook nobody could have written correctly from the symptom alone.
+	orderURI := order.URI
 
 	if order.Status == acme.StatusPending {
 		if err := p.solveAuthorizations(ctx, client, cfg, solvers, order); err != nil {
 			return nil, err
 		}
 
-		order, err = client.WaitOrder(ctx, order.URI)
+		order, err = client.WaitOrder(ctx, orderURI)
 		if err != nil {
 			return nil, fmt.Errorf("order did not become ready: %w", describeACMEError(err))
 		}
 	}
 
-	der, certURL, err := client.CreateOrderCert(ctx, order.FinalizeURL, csrDER, true)
+	// One finalize path for both, profiled or not — see the comment on
+	// finalizeOrder in profile.go for why client.CreateOrderCert is not used
+	// here even in the unmodified case.
+	der, certURL, err := p.finalizeOrderAndFetch(ctx, client, orderURI, order.FinalizeURL, csrDER)
 	if err != nil {
 		return nil, fmt.Errorf("failed to finalize ACME order: %w", describeACMEError(err))
 	}
