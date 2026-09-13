@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -87,6 +88,27 @@ func (p *Provider) IssueCertificate(ctx context.Context, req *providerv1.IssueCe
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	// Key usage and extended key usage are the CA's decision here, made by
+	// whichever profile issues the certificate — not a parameter this gateway
+	// can pass through and have honoured. Refusing rather than silently
+	// dropping them is the same call selfsigned makes the other way: a setting
+	// that is accepted and does nothing is the failure this exists to prevent.
+	// The primary place this is caught is template save time in the core,
+	// which can name the advertised profiles; this is the backstop for a
+	// caller that reaches the gateway directly.
+	if len(req.KeyUsage) > 0 || len(req.ExtendedKeyUsage) > 0 {
+		return nil, status.Error(codes.InvalidArgument,
+			"this ACME account cannot honour a declared key_usage or extended_key_usage: "+
+				"the profile decides, and this gateway has no way to make a profile produce one")
+	}
+
+	profile := strings.TrimSpace(req.CaProfile)
+	if profile != "" {
+		if err := p.checkProfileAdvertised(ctx, cfg, profile); err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+	}
+
 	domains, err := normalizeDomains(req.Domains, req.CsrPem)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -102,7 +124,7 @@ func (p *Provider) IssueCertificate(ctx context.Context, req *providerv1.IssueCe
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	issued, err := p.obtainCertificate(ctx, cfg, csrDER, domains)
+	issued, err := p.obtainCertificate(ctx, cfg, csrDER, domains, profile)
 	if err != nil {
 		return nil, status.Error(issuanceErrorCode(err), err.Error())
 	}
@@ -140,11 +162,14 @@ func (p *Provider) RenewCertificate(ctx context.Context, req *providerv1.RenewCe
 	}
 
 	issueResp, err := p.IssueCertificate(ctx, &providerv1.IssueCertificateRequest{
-		CsrPem:         req.CsrPem,
-		Domains:        domains,
-		KeyType:        req.KeyType,
-		KeySize:        req.KeySize,
-		ProviderConfig: req.ProviderConfig,
+		CsrPem:           req.CsrPem,
+		Domains:          domains,
+		KeyType:          req.KeyType,
+		KeySize:          req.KeySize,
+		ProviderConfig:   req.ProviderConfig,
+		CaProfile:        req.CaProfile,
+		KeyUsage:         req.KeyUsage,
+		ExtendedKeyUsage: req.ExtendedKeyUsage,
 	})
 	if err != nil {
 		return nil, err
@@ -289,13 +314,58 @@ func (p *Provider) GetCAInfo(ctx context.Context, req *providerv1.GetCAInfoReque
 		name = cfg.DirectoryURL
 	}
 
+	// Read live rather than trust a list compiled into this gateway.
+	// Let's Encrypt withdrew its "shortlived" profile on 8 July 2026 —
+	// exactly the case a compiled-in list gets wrong the moment it ships,
+	// and exactly why #29 asked for this to come from the directory itself.
+	var profiles []string
+	if meta, err := fetchDirectoryMeta(ctx, p.httpClient, cfg.DirectoryURL); err == nil {
+		for name := range meta.Meta.Profiles {
+			profiles = append(profiles, name)
+		}
+		sort.Strings(profiles)
+	} else {
+		slog.Warn("could not read advertised ACME profiles", "directory", cfg.DirectoryURL, "error", err)
+	}
+
 	return &providerv1.GetCAInfoResponse{
 		CaChain: []*commonv1.CAAuthorityInfo{{
 			Name:      name,
 			SubjectDn: cfg.DirectoryURL,
 			CaType:    "ISSUING",
 		}},
+		SupportedProfiles: profiles,
 	}, nil
+}
+
+// checkProfileAdvertised refuses a profile the directory does not currently
+// list, rather than letting the CA refuse it during an actual issuance.
+//
+// This is the gateway-level backstop; the primary check is in the core, at
+// template save time, where it can also list what is advertised. Both read
+// the same live directory rather than a compiled-in list, for the reason
+// given in GetCAInfo above.
+func (p *Provider) checkProfileAdvertised(ctx context.Context, cfg *Config, profile string) error {
+	meta, err := fetchDirectoryMeta(ctx, p.httpClient, cfg.DirectoryURL)
+	if err != nil {
+		return fmt.Errorf("could not confirm profile %q is offered by %s: %w", profile, cfg.DirectoryURL, err)
+	}
+	if len(meta.Meta.Profiles) == 0 {
+		// A CA that advertises no profiles at all has not implemented the
+		// draft. Naming one is then not a mistake this gateway can catch —
+		// it is simply passed through, and the CA will say what it thinks.
+		return nil
+	}
+	if _, ok := meta.Meta.Profiles[profile]; ok {
+		return nil
+	}
+	names := make([]string, 0, len(meta.Meta.Profiles))
+	for name := range meta.Meta.Profiles {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return fmt.Errorf("%s does not advertise a profile named %q; it currently offers: %s",
+		cfg.DirectoryURL, profile, strings.Join(names, ", "))
 }
 
 // GetCapabilities reports what this gateway supports.
