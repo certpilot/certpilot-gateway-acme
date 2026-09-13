@@ -1,8 +1,19 @@
 name: Release
 
+# Tags only.
+#
+# This published on every merge to main: a multi-architecture build for changes
+# that were often a paragraph of documentation, and `latest` moving each time,
+# so a `docker compose pull` could change what a deployment ran without anybody
+# deciding to.
+#
+# Building still happens on every pull request, in ci.yml, which is where a
+# broken Dockerfile should be caught. Only publishing is tied to a tag, so
+# `latest` means the most recent release rather than the most recent merge.
+#
+# workflow_dispatch stays for republishing a tag whose run failed.
 on:
   push:
-    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
@@ -33,13 +44,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/certpilot/gateway-acme
-          # latest tracks main. A release tag also publishes its exact version,
-          # so a deployment can pin one and a quickstart can follow the other.
+          # latest=auto attaches `latest` to a semver tag and nothing else, so a
+          # prerelease or a manual branch run cannot claim it.
+          flavor: latest=auto
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch
             type=sha,format=short
 
       - uses: docker/build-push-action@v6
