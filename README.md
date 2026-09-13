@@ -7,7 +7,7 @@ Services, or an internal one.
 Implements [`provider.v1`](https://github.com/certpilot/certpilot-gateway-sdk).
 
 ```
-docker run --rm -p 9092:9092 ghcr.io/certpilot/gateway-acme:latest
+docker run --rm -p 9092:9092 ghcr.io/certpilot/gateway-acme:0.2.0
 ```
 
 Then register it, from the core:
@@ -74,6 +74,16 @@ go run github.com/certpilot/certpilot-gateway-sdk/cmd/conformance@latest -addr l
 CI runs this on every pull request. It is what answers "does this still
 implement the contract the core expects" now that the two live in different
 repositories.
+
+## Releases
+
+`0.2.0`, on `linux/amd64` and `linux/arm64`. Images publish on a tag, never on a
+merge, so `latest` means the most recent release rather than the most recent
+commit — pin anyway for anything you depend on.
+
+The Go module is tagged in step with the image, so
+`go run github.com/certpilot/certpilot-gateway-acme/cmd@v0.2.0` runs the same code
+the image contains.
 
 ## Licence
 
