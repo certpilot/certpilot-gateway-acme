@@ -79,6 +79,6 @@ jobs:
         with:
           context: .
           push: false
-          tags: gateway-acmei
+          tags: gateway-acme:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
