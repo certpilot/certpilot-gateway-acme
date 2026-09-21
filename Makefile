@@ -17,4 +17,4 @@ image:
 
 ## Start the gateway on loopback first; this points the published probe at it.
 conformance:
-	go run github.com/certpilot/certpilot-gateway-sdk/cmd/conformance@v0.2.0 -addr 127.0.0.1:9092 -insecure
+	go run github.com/certpilot/certpilot-gateway-sdk/cmd/conformance@v0.3.0 -addr 127.0.0.1:9092 -insecure
