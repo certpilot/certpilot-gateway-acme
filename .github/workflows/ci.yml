@@ -63,7 +63,7 @@ jobs:
 
       - name: Probe the contract
         run: |
-          go run github.com/certpilot/certpilot-gateway-sdk/cmd/conformance@v0.2.0 \
+          go run github.com/certpilot/certpilot-gateway-sdk/cmd/conformance@v0.3.0 \
             -addr 127.0.0.1:9092 -insecure
 
   image:
