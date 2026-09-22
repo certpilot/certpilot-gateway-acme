@@ -58,6 +58,28 @@ endpoint has rate limits that punish a misconfiguration for a week, and staging
 is where you find out. A CA account may name its own directory and overrides
 this.
 
+## Limitations
+
+- **No issuer inventory.** ACME publishes no endpoint listing a CA's issuer
+  certificates — they arrive with each issuance. `GetCAInfo` answers with the
+  CA's identity and the profiles the directory advertises, read live, but no
+  issuers. ACME-signed certificates therefore do not populate CertPilot's CA
+  hierarchy view the way Vault-signed ones do.
+- **`DescribeProfile` is not implemented**, and answers `Unimplemented` — a
+  supported answer under the v0.3.0 contract.
+- **Wildcards need `dns-01`.** That is ACME's rule, not this gateway's.
+- **External Account Binding is unverified against a real CA.** The binding is
+  built and unit-tested; nothing in CI has ever contacted ZeroSSL, Google Trust
+  Services or SSL.com. Marked 🧪 in CertPilot's
+  [implementation status](https://github.com/certpilot/certpilot/blob/main/docs/status.md).
+- **Issuance is not exercised in CI.** The conformance job runs the contract
+  checks and reports its issuance checks as *skipped*, because a CA has to
+  validate a domain CI does not control.
+
+[The ACME gateway](https://github.com/certpilot/certpilot/blob/main/docs/gateways/acme.md)
+is the operational guide: challenges, directories and rate limits, and where the
+security boundary sits.
+
 ## Building
 
 ```
