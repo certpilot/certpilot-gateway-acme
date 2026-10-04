@@ -68,13 +68,20 @@ this.
 - **`DescribeProfile` is not implemented**, and answers `Unimplemented` — a
   supported answer under the v0.3.0 contract.
 - **Wildcards need `dns-01`.** That is ACME's rule, not this gateway's.
-- **External Account Binding is unverified against a real CA.** The binding is
-  built and unit-tested; nothing in CI has ever contacted ZeroSSL, Google Trust
-  Services or SSL.com. Marked 🧪 in CertPilot's
+- **External Account Binding is checked against Pebble, not against a
+  commercial CA.** CertPilot's `make live-eab` runs this gateway's published
+  image against Pebble with a binding required: a correct binding issues and
+  renews through the same account, and no binding, a wrong HMAC key and an
+  unknown key id are each refused with Pebble's reason. Nothing has contacted
+  ZeroSSL, Google Trust Services or SSL.com, so their own rules — such as a key
+  id that opens one account only — are untested. See CertPilot's
   [implementation status](https://github.com/certpilot/certpilot/blob/main/docs/status.md).
-- **Issuance is not exercised in CI.** The conformance job runs the contract
-  checks and reports its issuance checks as *skipped*, because a CA has to
-  validate a domain CI does not control.
+- **Issuance is not exercised in this repository's CI.** The conformance job
+  runs the contract checks and reports its issuance checks as *skipped*, because
+  a CA has to validate a domain CI does not control. CertPilot's `make live-eab`
+  does issue through the released image, against Pebble with every
+  authorization treated as valid, so it tests the account and the order, not
+  the challenge.
 
 [The ACME gateway](https://github.com/certpilot/certpilot/blob/main/docs/gateways/acme.md)
 is the operational guide: challenges, directories and rate limits, and where the
