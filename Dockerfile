@@ -30,9 +30,11 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" \
       -o /out/gateway-acme ./cmd/
 
-FROM alpine:3.20
+FROM alpine:3.24
 
-RUN apk --no-cache add ca-certificates tzdata
+# Upgraded as well as added: the base image is rebuilt less often than its
+# packages are patched.
+RUN apk --no-cache upgrade && apk --no-cache add ca-certificates tzdata
 
 # Nothing here needs root, and a certificate tool running as root inside its own
 # container is an argument it should not have to make.
