@@ -1,7 +1,8 @@
-# Weekly, and grouped, so the updates arrive as one pull request per
-# ecosystem rather than one per module. Security updates are not
-# held for the schedule: GitHub opens those as soon as an advisory
-# lands, when Dependabot security updates are on for the repository.
+# Weekly. Minor and patch updates arrive grouped, one pull request per
+# ecosystem; a major version arrives on its own, because that is the one
+# that can break something and deserves its own review. Security updates
+# are not held for the schedule: GitHub opens them as soon as an advisory
+# lands.
 version: 2
 updates:
   - package-ecosystem: gomod
@@ -11,7 +12,7 @@ updates:
       day: monday
     groups:
       gomod:
-        patterns: ["*"]
+        update-types: ["minor", "patch"]
   # Base images: the runtime stage is what ships.
   - package-ecosystem: docker
     directory: "/"
@@ -20,7 +21,7 @@ updates:
       day: monday
     groups:
       docker:
-        patterns: ["*"]
+        update-types: ["minor", "patch"]
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
@@ -28,4 +29,4 @@ updates:
       day: monday
     groups:
       github_actions:
-        patterns: ["*"]
+        update-types: ["minor", "patch"]
