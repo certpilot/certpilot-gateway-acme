@@ -24,8 +24,8 @@ jobs:
     name: govulncheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       # Fails on a vulnerability in code this calls. One in a package it
@@ -36,7 +36,7 @@ jobs:
     name: image, gateway-acme
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker build -f Dockerfile -t scan/gateway-acme:ci .
       # Fixed vulnerabilities only. One with no fix yet cannot be acted on
       # here, and failing the build for it would only teach people to
