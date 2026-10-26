@@ -11,7 +11,7 @@
 # This module depends on a published certpilot-gateway-sdk now, so the context
 # is the module. Smaller, and it no longer carries source that has nothing to do
 # with this binary.
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 WORKDIR /src
 
